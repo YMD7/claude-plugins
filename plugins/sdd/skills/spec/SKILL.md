@@ -1,0 +1,143 @@
+---
+name: spec
+description: 仕様駆動開発（SDD）フレームワークに基づいてBlueprint・ブループリント・Spec・スペック生成を支援。SDD、仕様駆動開発プロセス、Blueprint作成、ブループリント作成、Spec作成、スペック作成、レビューサイクル管理など、仕様駆動開発の全プロセスをガイド。「ブループリント作って」「スペック作って」「スペック作成して」「スペック生成して」「requirements作って」等のリクエストに対応。
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
+---
+
+# 仕様駆動開発（SDD）Skill
+
+## 概要
+
+このSkillは、仕様駆動開発（Spec-Driven Development, SDD）の全プロセスをClaude Code上で支援する。
+
+コアフレームワーク（ワークフロー定義・テンプレート・ステアリング）は `spec/_meta/` に集約されており、
+本Skillはそれらを参照しつつ、Claude Code固有の機能（レビュー、PlanMode統合、動的参照）を追加する。
+
+## 前提条件
+
+SDDフレームワークがプロジェクトにセットアップ済みであること。未セットアップの場合は `/sdd:init` を先に実行する。
+
+```
+必要な構造:
+└── spec/_meta/                    # SDDコアフレームワーク
+    ├── workflow.md                # ワークフロー定義
+    ├── prompt.md                  # Spec生成システムプロンプト
+    ├── steering/                  # プロジェクト固有設定
+    │   ├── project.md             # プロダクト概要・ビジョン
+    │   ├── structure.md           # プロジェクト構造
+    │   └── tech.md                # テックスタック
+    └── templates/                 # Blueprint/Specテンプレート
+```
+
+## 必須参照ドキュメント
+
+SDDプロセスを開始する前に、以下を必ず参照すること。
+
+### フレームワークドキュメント（必読）
+
+1. **spec/\_meta/workflow.md** — 配置ルール、採番、承認フロー、生成手順
+2. **spec/\_meta/prompt.md** — Spec生成システムプロンプト
+
+### ステアリングファイル（必読・プロジェクト固有）
+
+- **spec/\_meta/steering/project.md** — プロジェクト概要・方針
+- **spec/\_meta/steering/structure.md** — プロジェクト構造
+- **spec/\_meta/steering/tech.md** — テックスタック
+- 追加ファイルがあれば `spec/_meta/steering/` 内の全 `.md` を参照
+
+### テンプレート
+
+`spec/_meta/templates/` を参照:
+
+- Blueprint: `blueprint-overview.md`, `blueprint-architecture.md`, `blueprint-scope-template.md`
+- Spec: `spec-requirements-template.md`, `spec-design-template.md`, `spec-tasks-template.md`
+
+### 動的参照
+
+作業内容に応じてプロジェクトの `docs/` 配下から関連ドキュメントを検索・参照:
+
+- Blueprint生成 → structure.md, tech.md 重視
+- Requirements生成 → project.md 重視
+- Design生成 → tech.md, API仕様 重視。加えて、設計書の「コンポーネントとインターフェース」セクションで参照する既存コードについて、現行の型定義・シグネチャを読み込んで設計書の記述と整合させること。新規作成するものはこの限りではない
+- Tasks生成 → 実装ガイド、Git workflow 重視
+
+```bash
+# 例: API設計時
+Grep -pattern "API|エンドポイント|REST" docs/
+
+# 例: セキュリティ考慮時
+Glob "docs/**/*security*.md"
+```
+
+## レビュー/フィードバックループ
+
+Specドキュメントのレビューは `/sdd:spec-review` コマンドで実行する。
+
+```
+/sdd:spec-review requirements    # requirements.md のレビュー
+/sdd:spec-review design          # design.md のレビュー
+/sdd:spec-review tasks           # tasks.md のレビュー
+```
+
+`/sdd:spec-review` はコンテキストチェーン構築、レビュー、トリアージまで自動実行する。
+レビュー修正ループの詳細は `spec/_meta/workflow.md` の「レビュー/フィードバックループ」セクションを参照。
+
+> レビューログのフォーマットは `spec/_meta/workflow.md` の「レビュー/フィードバックループ」セクションに定義。
+
+## 実行規約
+
+### 必須事項
+
+1. **ワークツリー必須**: Spec生成は必ずワークツリー内で作業する。`/sdd:create-worktree sdd B{nn}-S{nn}` でワークツリーを作成してから開始する。すべてのファイル操作はワークツリーパス（`worktrees/{worktree-name}/...`）で行うこと
+2. **事前読込**: `spec/_meta/steering/` の必須ファイルと `spec/_meta/workflow.md` を必ず参照
+3. **動的参照**: タスクに応じてプロジェクトの `docs/` から関連ドキュメントを検索・参照
+4. **順序遵守**: Requirements → Design → Tasks の順で生成
+5. **承認チェック**: 前段階の承認なしに次段階に進まない
+6. **タスク完了の表記**: タスク実行時、完了済みタスクには ✅ を付与する
+7. **PlanMode必須（ドラフト生成・修正の両方）**: Specドキュメントの生成・修正を行う前に必ず `EnterPlanMode` で計画を作成し、ユーザー承認を得てから実行する。詳細は下記「PlanModeゲート」セクションを参照
+8. **都度コミット**: Spec文書の生成・修正・レビューログ記録など、ファイルに変更が生じたら都度コミットする（ワークツリー内で `git -C {worktree}` を使用）
+9. **完了後の統合**: Tasks 承認後、PRを作成し、コードレビュー → マージ → ワークツリークリーンアップの流れで統合する。プロジェクトにPR/レビュー/マージ用のコマンドがあればそれを使用し、なければ `/sdd:cleanup-worktree` でクリーンアップする
+
+### PlanModeゲート
+
+Specドキュメントへの書き込み（新規生成・修正いずれも）は、以下の3段階を必ず経由する:
+
+```
+Step 0: [ASK] で承認を得る（「{stage}の生成計画を作成しましょうか？(y/n)」）
+Step 1: EnterPlanMode で計画を作成
+        - ドラフト生成時: 何を書くか（構成・要点・参照元）の計画
+        - レビュー修正時: どの指摘をどう修正するかの計画
+Step 2: ユーザーが計画を承認
+Step 3: 承認された計画に従って実行（ここで初めてファイルに書き込む）
+```
+
+**適用対象**: requirements.md / design.md / tasks.md の新規生成および修正
+**適用外**: レビューログ（artifacts/REVIEW-\*.md）への追記、コミット操作
+
+> **なぜこのゲートが必要か**: PlanModeを経由せずにドキュメントを直接書き始めると、方向性のズレに気づくのが遅れる。計画段階でユーザーと合意することで、手戻りを最小化する。
+
+### 禁止事項
+
+- 承認前の次段階生成
+- 上流未参照の下流生成
+- 必須ドキュメントの読み飛ばし
+- 作業ブランチ/ワークツリー準備は tasks.md に含めない（運用ガイドで管理）
+- **PlanMode無しでのドキュメント書き込み禁止**: `EnterPlanMode` → ユーザー承認を経ずに requirements.md / design.md / tasks.md への書き込み（新規生成・修正）を行ってはならない
+
+## トラブルシューティング
+
+### ステアリングファイル不足
+
+`spec/_meta/steering/` の必須ファイル（project.md, structure.md, tech.md）が存在しない場合:
+
+1. エラーを報告し、期待される内容を提示
+2. プロジェクト内で代替となるドキュメントがないか検索
+3. 続行可否をユーザーに確認
+4. `/sdd:init` の実行を提案
+
+### 承認前進行エラー
+
+前段階未承認で次段階の生成を試みた場合:
+
+1. エラーメッセージを表示し、承認プロセスを説明
+2. ユーザー承認を待機
