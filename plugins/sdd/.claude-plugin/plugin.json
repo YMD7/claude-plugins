@@ -6,6 +6,5 @@
   "repository": "https://github.com/YMD7/claude-plugins",
   "license": "MIT",
   "skills": "./skills/",
-  "agents": "./agents/",
   "commands": "./commands/"
 }
