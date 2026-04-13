@@ -182,6 +182,26 @@ Issue番号: $2
 
 ### 共通処理（全パターン）
 
+3.1. **ワークツリーディレクトリの決定**:
+
+ワークツリーを配置するディレクトリを以下の優先順で判定する:
+
+```
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+1. $PROJECT_ROOT/worktrees/ が存在する → そこを使用
+2. $PROJECT_ROOT/.worktrees/ が存在する → そこを使用
+3. どちらも存在しない → .worktrees/ を提案:
+   「ワークツリー用ディレクトリが見つかりません。
+   .worktrees/ を作成してよろしいですか？(y/n)」
+   - Yes → mkdir -p .worktrees/ を実行
+          → .gitignore に .worktrees が未登録なら追加
+   - No → ユーザーに希望のディレクトリを確認
+```
+
+判定結果を `WORKTREE_BASE` 変数として以降のステップで使用する。
+以降のパス `worktrees/{name}` は `{WORKTREE_BASE}/{name}` に読み替えること。
+
 3.5. **ベースブランチのクリーン状態チェック**:
 
 - ルートディレクトリの `git status --porcelain` を実行
@@ -389,13 +409,14 @@ Issue番号: $2
 
 ⚠️ **ワークツリー作成処理中に避けるべきこと**（この制約は作成処理中のみ適用。作成後の開発作業では cd でワークツリーに移動してよい）:
 
-- 相対パス `worktrees/` での git worktree add 実行（カレントディレクトリに新しい worktrees を作成してしまう）
+- 相対パスでの git worktree add 実行（カレントディレクトリに意図しないディレクトリを作成してしまう）
 - cdコマンドでのディレクトリ移動（zoxide等のシェルエイリアスに横取りされてエラーになる）
 - ワークツリー内での `git rev-parse --show-toplevel` 使用（メインリポジトリではなくワークツリーのパスを返すためパスが二重になる）
-- プロジェクトルート以外の場所での worktrees 作成
+- プロジェクトルート以外の場所でのワークツリー作成
 
 ✅ **必須事項**:
 
-- ワークツリーは必ず `{project-root}/worktrees/` に絶対パスで作成（`git rev-parse --show-toplevel` でルート取得）
+- ワークツリーは必ず `{project-root}/{WORKTREE_BASE}/` に絶対パスで作成（`git rev-parse --show-toplevel` でルート取得）
+- `WORKTREE_BASE` はステップ 3.1 で決定されたディレクトリを使用する
 - 作成処理中はcdコマンド不要で直接git worktree addを絶対パス指定で実行
 - 作成完了後は `cd` でワークツリーに移動し、以降の開発作業はワークツリー内で行う
