@@ -3,7 +3,7 @@ name: sdd-init-code-researcher
 description: SDD init 用。プロジェクトのコードベースを徹底調査し、技術スタック・アーキテクチャ・構造を分析する
 model: opus
 effort: max
-tools: Read, Grep, Glob, Bash
+tools: Read, Write, Grep, Glob, Bash
 maxTurns: 30
 ---
 
@@ -114,6 +114,7 @@ maxTurns: 30
 
 ## 注意事項
 
+- **ファイル出力は必須**: 調査結果は必ず上記の2ファイル（findings-code.md, questions-code.md）に Write ツールで書き出すこと。レスポンスとして返すだけでは後続フェーズが動作しない
+- 出力ファイルを作成する前に `mkdir -p .tmp/sdd-init/` でディレクトリを作成すること
 - 推測で補完せず、確認が必要な点は必ず questions に記録する
-- 出力ファイルを作成する前に `.tmp/sdd-init/` ディレクトリを作成すること
 - コードの内容を大量に引用しない。要約と具体例（数行）に留める

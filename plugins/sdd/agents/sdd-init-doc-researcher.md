@@ -3,7 +3,7 @@ name: sdd-init-doc-researcher
 description: SDD init 用。プロジェクトの既存ドキュメントを精読し、SDD steering 要件とのギャップを分析する
 model: opus
 effort: max
-tools: Read, Grep, Glob
+tools: Read, Write, Grep, Glob, Bash
 maxTurns: 30
 ---
 
@@ -140,7 +140,8 @@ ARCHITECTURE.md, CONTRIBUTING.md
 
 ## 注意事項
 
+- **ファイル出力は必須**: 調査結果は必ず上記の2ファイル（findings-docs.md, questions-docs.md）に Write ツールで書き出すこと。レスポンスとして返すだけでは後続フェーズが動作しない
+- 出力ファイルを作成する前に `mkdir -p .tmp/sdd-init/` でディレクトリを作成すること
 - ドキュメントを読み飛ばさず、見つかったものはすべて精読する
 - カバレッジの評価は保守的に行う（曖昧な記述は「不足」側に数える）
 - 推測で補完せず、確認が必要な点は必ず questions に記録する
-- 出力ファイルを作成する前に `.tmp/sdd-init/` ディレクトリを作成すること
