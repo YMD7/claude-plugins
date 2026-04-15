@@ -167,8 +167,8 @@
       _要件_: workflow.archive
       _依存_: TN.5
       _完了条件_:
-  - スペックディレクトリ `spec/specs/B{nn}-S{nn}-{slug}/` を `_archive/specs/` に移動
-  - 元になったブループリントディレクトリは、当該ブループリントの全スコープが完了済みの場合のみ `_archive/blueprints/` に移動
+  - スペックディレクトリ `spec/specs/B{nn}-S{nn}-{slug}/` を `spec/_archive/specs/` に移動
+  - 元になったブループリントディレクトリは、当該ブループリントの全スコープが完了済みの場合のみ `spec/_archive/blueprints/` に移動
   - 移動後のディレクトリ構造が正しく、全ファイルが含まれていることを確認
   - アーカイブ後、他のドキュメントからの参照リンクが有効であることを確認（grep等で `spec/specs/B{nn}-S{nn}-` や `blueprints/{nn}-` を検索し、リンク切れがないか確認）
   - `/sdd:cleanup-worktree` に従い、作業ブランチ・ワークツリーをクリーンアップ
