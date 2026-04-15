@@ -296,23 +296,24 @@ Phase 4 の対話を始める前に、ユーザーに以下を確認する:
 
 1. **ディレクトリ構造の作成**:
    ```bash
-   mkdir -p spec/_meta/steering
-   mkdir -p spec/_meta/templates
+   mkdir -p spec/_custom/steering
    mkdir -p spec/blueprints
    mkdir -p spec/specs
    mkdir -p spec/_archive/blueprints
    mkdir -p spec/_archive/specs
    ```
 
-2. **フレームワークファイルの配置**:
-   - プラグインの `templates/framework/` から `workflow.md`, `prompt.md`, `README.md` を `spec/_meta/` にコピー
-   - プラグインの `templates/` から Blueprint/Spec テンプレートを `spec/_meta/templates/` にコピー
+2. **カスタマイズガイドの配置**:
+   - プラグインの `templates/framework/custom-readme.md` を `spec/_custom/README.md` としてコピー
 
 3. **ステアリングファイルの配置**:
-   - 既存ドキュメントへのシンボリンクを `spec/_meta/steering/` に作成
+   - 既存ドキュメントへのシンボリンクを `spec/_custom/steering/` に作成
    - 新規生成したドキュメントはプロジェクトの `docs/` 配下に配置し、シンボリンクを作成
 
-4. **一時ファイルのクリーンアップ**:
+4. **spec/README.md の配置**:
+   - プラグインの `templates/framework/README.md` を `spec/README.md` としてコピー
+
+5. **一時ファイルのクリーンアップ**:
    ```bash
    rm -rf .tmp/sdd-init/
    ```
@@ -324,21 +325,13 @@ init 完了後、プロジェクトに以下の構造が追加される:
 ```
 {project-root}/
 ├── spec/
-│   ├── _meta/
-│   │   ├── README.md
-│   │   ├── workflow.md
-│   │   ├── prompt.md
-│   │   ├── steering/
-│   │   │   ├── project.md  → ../../docs/xxx.md（シンボリンク）
-│   │   │   ├── structure.md → ../../docs/xxx.md（シンボリンク）
-│   │   │   └── tech.md     → ../../docs/xxx.md（シンボリンク）
-│   │   └── templates/
-│   │       ├── blueprint-overview.md
-│   │       ├── blueprint-architecture.md
-│   │       ├── blueprint-scope-template.md
-│   │       ├── spec-requirements-template.md
-│   │       ├── spec-design-template.md
-│   │       └── spec-tasks-template.md
+│   ├── README.md                    # SDDフレームワーク概要
+│   ├── _custom/
+│   │   ├── README.md                # カスタマイズガイド
+│   │   └── steering/
+│   │       ├── project.md  → ../../docs/xxx.md（シンボリンク）
+│   │       ├── structure.md → ../../docs/xxx.md（シンボリンク）
+│   │       └── tech.md     → ../../docs/xxx.md（シンボリンク）
 │   ├── blueprints/
 │   ├── specs/
 │   └── _archive/

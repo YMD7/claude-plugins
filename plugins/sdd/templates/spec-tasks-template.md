@@ -1,4 +1,4 @@
-# specs/B{nn}-S{nn}-{slug}/tasks.md
+# spec/specs/B{nn}-S{nn}-{slug}/tasks.md
 
 # Spec B{nn}-S{nn}: {スペック名} タスクリスト
 
@@ -167,11 +167,11 @@
       _要件_: workflow.archive
       _依存_: TN.5
       _完了条件_:
-  - スペックディレクトリ `specs/B{nn}-S{nn}-{slug}/` を `_archive/specs/` に移動
+  - スペックディレクトリ `spec/specs/B{nn}-S{nn}-{slug}/` を `_archive/specs/` に移動
   - 元になったブループリントディレクトリは、当該ブループリントの全スコープが完了済みの場合のみ `_archive/blueprints/` に移動
   - 移動後のディレクトリ構造が正しく、全ファイルが含まれていることを確認
-  - アーカイブ後、他のドキュメントからの参照リンクが有効であることを確認（grep等で `specs/B{nn}-S{nn}-` や `blueprints/{nn}-` を検索し、リンク切れがないか確認）
-  - `.claude/commands/cleanup-worktree.md` に従い、作業ブランチ・ワークツリーをクリーンアップ
+  - アーカイブ後、他のドキュメントからの参照リンクが有効であることを確認（grep等で `spec/specs/B{nn}-S{nn}-` や `blueprints/{nn}-` を検索し、リンク切れがないか確認）
+  - `/sdd:cleanup-worktree` に従い、作業ブランチ・ワークツリーをクリーンアップ
   - アーカイブ完了をプロジェクト記録（該当する場合、`docs/project/overview.md` など）に反映
 
 ---
@@ -213,6 +213,6 @@
 
 ## 参考資料
 
-- Requirements: `specs/B{nn}-S{nn}-{slug}/requirements.md`
-- Design: `specs/B{nn}-S{nn}-{slug}/design.md`
-- Workflow: `spec/_meta/workflow.md`
+- Requirements: `spec/specs/B{nn}-S{nn}-{slug}/requirements.md`
+- Design: `spec/specs/B{nn}-S{nn}-{slug}/design.md`
+- Workflow: `workflow.md`（テンプレート解決ルールに従う）

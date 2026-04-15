@@ -337,7 +337,7 @@ interface ErrorResponse {
 ## 参考資料
 
 ### プロジェクト内ドキュメント
-- `specs/B{nn}-S{nn}-{slug}/requirements.md`: 要件定義
+- `spec/specs/B{nn}-S{nn}-{slug}/requirements.md`: 要件定義
 - `blueprints/{nn}-{blueprint-slug}/architecture.md`: システムアーキテクチャ
 - `docs/`: プロジェクトドキュメント
 
