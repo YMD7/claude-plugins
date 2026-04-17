@@ -7,6 +7,7 @@ Claude Code プラグインのモノレポ。
 | Plugin | Description |
 |--------|-------------|
 | [sdd](./plugins/sdd/) | Spec-Driven Development framework |
+| [terse-mode](./plugins/terse-mode/) | Output token reduction mode for Claude Code workflows |
 
 ## Usage
 
