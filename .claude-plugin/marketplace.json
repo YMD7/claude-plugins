@@ -1,5 +1,5 @@
 {
-  "name": "claude-plugins",
+  "name": "ymd7-plugins",
   "description": "Personal Claude Code plugins",
   "owner": { "name": "YMD7" },
   "plugins": [
