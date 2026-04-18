@@ -8,12 +8,6 @@
       "description": "Spec-Driven Development framework for Claude Code",
       "source": "./plugins/sdd",
       "category": "development"
-    },
-    {
-      "name": "terse-mode",
-      "description": "Output token reduction mode for Claude Code workflows",
-      "source": "./plugins/terse-mode",
-      "category": "development"
     }
   ]
 }
