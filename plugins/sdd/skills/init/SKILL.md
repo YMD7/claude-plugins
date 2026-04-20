@@ -48,6 +48,44 @@ grep -q '^\.tmp' .gitignore 2>/dev/null || echo '.tmp' >> .gitignore
 **現在のブランチに直接コミットする場合**:
 - そのまま Phase 1 に進む
 
+#### 0.3 VCS プロバイダーの記録
+
+SDD プラグインの他コマンド（`create-worktree`, `plan-task`, `consolidate-review` 等）は issue / PR / MR 操作で VCS プロバイダーの情報を参照する。init 実行時に一度だけ判定して `AGENTS.md` / `CLAUDE.md` に **1 行**記録しておく。
+
+**判定・追記フロー:**
+
+1. **既存記述の確認（冪等性）**:
+   - `AGENTS.md` / `CLAUDE.md` を読み、`VCS:` 等の記述が既にある場合は何もしない
+
+2. **VCS プロバイダー判定**:
+   - `git remote get-url origin` を実行し、ホスト名から判定:
+     - `github.com` を含む → `GitHub`
+     - `gitlab.*`（self-hosted 含む）→ `GitLab ({host})`
+     - remote が無い／判定不能 → ユーザーに質問して確認:
+       > VCS プロバイダーを自動判定できませんでした。どちらですか？
+       > 1. GitHub
+       > 2. GitLab（ホスト名を入力）
+       > 3. スキップ（VCS 記述を追加しない）
+
+3. **追記先ファイル選択**:
+   - `AGENTS.md` が存在する → `AGENTS.md` に追記（優先）
+   - `CLAUDE.md` のみ存在する → `CLAUDE.md` に追記
+   - どちらも無い → ユーザーに確認（どちらを作成するか、スキップするか）
+
+4. **追記内容（1 行のみ）**:
+
+   ```markdown
+   - **VCS**: GitHub — use `gh` for issue/PR operations
+   ```
+
+   または
+
+   ```markdown
+   - **VCS**: GitLab ({host}) — use `glab` for issue/MR operations
+   ```
+
+**重要原則**: 追記は **1 行のみ**。背景説明・手順・URL 等の詳細は書かない。`AGENTS.md` / `CLAUDE.md` は常時自動ロードされてコンテキスト予算を消費するため、最小記述を徹底する。
+
 ### Phase 1: プロジェクト調査（並行実行）
 
 2つのリサーチャーサブエージェントを**並行**で起動する。
