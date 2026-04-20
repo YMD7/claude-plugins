@@ -1,14 +1,14 @@
 ---
 argument-hint: <worktree_path_or_branch>
 description: ワークツリーとブランチを安全に削除する（サブモジュール対応・秘匿ファイル回収版）
-allowed-tools: Bash(bash:*), Bash(git worktree:*), Bash(git branch:*)
+allowed-tools: Bash(bash:*), Bash(git worktree:*), Bash(git branch:*), Bash(git remote:*), Bash(gh:*), Bash(glab:*), Read
 ---
 
 # ワークツリー・ブランチクリーンアップ（サブモジュール対応）
 
 指定されたワークツリーディレクトリまたはブランチ名を削除する。
 
-**重要**: このコマンドは `.claude/scripts/cleanup-worktree.sh` スクリプトを使用する。
+**重要**: このコマンドはプラグイン同梱の `${CLAUDE_PLUGIN_ROOT}/scripts/cleanup-worktree.sh` スクリプトを使用する。
 サブモジュールを含むワークツリーも安全に削除でき、削除前に秘匿ファイルを自動回収する。
 
 ## 対象
@@ -19,11 +19,12 @@ allowed-tools: Bash(bash:*), Bash(git worktree:*), Bash(git branch:*)
 
 ## リポジトリ情報の自動検出
 
-スクリプト実行前に、以下のコマンドでリポジトリ情報を取得する。`--repo` 指定が必要な `gh` コマンドで使用する。
+スクリプト実行前に、VCS プロバイダーを判定してリポジトリ情報を取得する。
 
-```bash
-gh repo view --json nameWithOwner -q .nameWithOwner
-```
+- **VCS 判定**: `CLAUDE.md` / `AGENTS.md` に VCS 記述があれば採用。なければ `git remote get-url origin` のホスト名から判定（`github.com` → GitHub、その他 → GitLab）
+- **リポジトリ情報の取得**:
+  - GitHub: `gh repo view --json nameWithOwner -q .nameWithOwner`（結果は `$REPO` として保持）
+  - GitLab: `glab repo view --output json`（`path_with_namespace` を `$REPO` として保持）
 
 ## 前提チェック: cwd をプロジェクトルートに戻す
 
@@ -38,7 +39,7 @@ cd "$(git worktree list --porcelain | head -1 | sed 's/^worktree //')" && pwd
 ### 推奨: スクリプトを使用（サブモジュール対応）
 
 ```bash
-bash .claude/scripts/cleanup-worktree.sh $ARGUMENTS
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/cleanup-worktree.sh $ARGUMENTS
 ```
 
 **スクリプトの機能**:
@@ -60,7 +61,7 @@ bash .claude/scripts/cleanup-worktree.sh $ARGUMENTS
 削除前に影響範囲を確認:
 
 ```bash
-bash .claude/scripts/cleanup-worktree.sh --dry-run $ARGUMENTS
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/cleanup-worktree.sh --dry-run $ARGUMENTS
 ```
 
 ## 処理内容
@@ -115,8 +116,10 @@ bash .claude/scripts/cleanup-worktree.sh --dry-run $ARGUMENTS
 
 ### スクリプト実行権限がない場合
 
+プラグイン同梱のスクリプトは通常実行権限付きで配布されるが、万一必要なら:
+
 ```bash
-chmod +x .claude/scripts/cleanup-worktree.sh
+chmod +x ${CLAUDE_PLUGIN_ROOT}/scripts/cleanup-worktree.sh
 ```
 
 ### 手動削除が必要な場合
@@ -137,11 +140,16 @@ git worktree prune
 
 ### 報告手順
 
-1. **スクリプト実行前**に `worktrees/{worktree-name}/.tmp/workflow-state.md` を読み込み、PR セクションから PR 番号を取得する
-2. PR 番号がある場合、以下のコマンドで PR 情報を取得（`REPO` はリポジトリ情報の自動検出で取得した値）:
+1. **スクリプト実行前**に対象ワークツリーの `.tmp/workflow-state.md` を読み込み（`git worktree list` で絶対パスを解決）、PR セクションから PR 番号を取得する
+2. PR / MR 番号がある場合、VCS プロバイダーに応じて情報を取得（`$REPO` はリポジトリ情報の自動検出で取得した値）:
 
 ```bash
+# GitHub の場合
 gh pr view {number} --repo $REPO --json title,number,additions,deletions,changedFiles,mergedAt,url
+
+# GitLab の場合
+glab mr view {number} --repo $REPO --output json
+# → title, iid, merged_at, web_url 等のフィールドを使用
 ```
 
 3. スクリプト実行・クリーンアップ完了後、以下のフォーマットで報告:
@@ -171,7 +179,7 @@ gh pr view {number} --repo $REPO --json title,number,additions,deletions,changed
 
 ### ステートファイル参照による次イテレーション提案
 
-クリーンアップ前に `worktrees/{worktree-name}/.tmp/workflow-state.md` を読み込み、次の未完了フェーズ/タスクを特定する（`{worktree-name}` はクリーンアップ対象のワークツリーディレクトリ名）:
+クリーンアップ前に対象ワークツリーの `.tmp/workflow-state.md` を読み込み（`git worktree list` で絶対パスを解決）、次の未完了フェーズ/タスクを特定する:
 
 1. **ステートファイルがある場合**: Context セクションのスペック/イシュー情報から tasks.md を参照し、次の未完了タスク/フェーズを特定して `/create-worktree` コマンドを引数付きで提案
 
@@ -183,13 +191,15 @@ gh pr view {number} --repo $REPO --json title,number,additions,deletions,changed
 
 ### ステートファイルの自動クリーンアップ
 
-ワークツリー削除により `worktrees/{worktree-name}/.tmp/` 配下のステートファイル・レトロファイル・レビュー結果等は自動クリーンアップされる。明示的な削除は不要。
+ワークツリー削除により `<worktree>/.tmp/` 配下のステートファイル・レトロファイル・レビュー結果等は自動クリーンアップされる。明示的な削除は不要。
 
 ### イシュータスク完了時の報告フォーマット
 
 イシュータスクのクリーンアップ後は、オープンなイシュー一覧を取得し、既存ワークツリーとの紐付けも合わせて報告する:
 
-1. `gh issue list --repo $REPO --state open` でオープンイシューを取得（`$REPO` は自動検出値）
+1. VCS に応じてオープンイシューを取得（`$REPO` は自動検出値）:
+   - GitHub: `gh issue list --repo $REPO --state open`
+   - GitLab: `glab issue list --repo $REPO --opened`
 2. `git worktree list` の結果と照合し、各イシューに対応するワークツリーがあるか確認
 3. 以下のフォーマットで報告:
 
@@ -209,5 +219,5 @@ gh pr view {number} --repo $REPO --json title,number,additions,deletions,changed
 
 ## 関連ファイル
 
-- **スクリプト本体**: `.claude/scripts/cleanup-worktree.sh`
-- **ワークツリー作成**: `.claude/commands/create-worktree.md`
+- **スクリプト本体**: `${CLAUDE_PLUGIN_ROOT}/scripts/cleanup-worktree.sh`
+- **ワークツリー作成**: `${CLAUDE_PLUGIN_ROOT}/commands/create-worktree.md`
