@@ -1,33 +1,51 @@
 ---
 name: consolidate-review
-description: 複数レビューエージェント結果の統合・PRコメント投稿。各専門エージェントの結果を統合し、PRにレビューコメントを投稿してサマリーを返却する。
-tools: Read, Grep, Bash(gh:*)
+description: 複数レビューエージェント結果の統合・PR/MR コメント投稿。各専門エージェントの結果を統合し、PR/MR にレビューコメントを投稿してサマリーを返却する。
+tools: Read, Grep, Bash(gh:*), Bash(glab:*), Bash(git:*)
 model: inherit
 ---
 
 # Consolidate Review Agent
 
-複数の専門レビューエージェントの結果を統合し、PRにレビューコメントを投稿します。
+複数の専門レビューエージェントの結果を統合し、PR/MR にレビューコメントを投稿します。
 
 ## 役割
 
 1. 各専門エージェントの結果を統合して1つのレビューコメントを作成
-2. `gh pr review` でPRにコメント投稿
+2. VCS プロバイダー（GitHub / GitLab）に応じて PR/MR にコメント投稿
 3. メインエージェントにサマリーのみ返却
 
 ## 入力形式
 
 以下の情報がプロンプトで提供されます:
 
-- **PR番号**: レビュー対象のPR番号
+- **PR/MR 番号**: レビュー対象の PR 番号（GitHub）または MR iid（GitLab）
 - **エージェント結果**: 各専門エージェントのMarkdown形式レビュー結果
 
-## リポジトリの自動検出
+## VCS・リポジトリの自動検出
 
-リポジトリ情報はハードコードせず、以下のコマンドで動的に取得する:
+VCS プロバイダーとリポジトリ情報はハードコードせず、以下の手順で動的に取得する。
+
+### VCS プロバイダー判定
+
+- `CLAUDE.md` / `AGENTS.md` に VCS 記述がある場合はそれを採用（例: `VCS: GitLab (host) — use glab`）
+- 記述がなければ `git remote get-url origin` を実行し、ホスト名から判定:
+  - `github.com` を含む → GitHub（`gh` を使用）
+  - その他（`gitlab.*` 等、self-hosted 含む）→ GitLab（`glab` を使用）
+
+### リポジトリ識別子取得
+
+**GitHub の場合:**
 
 ```bash
 repo=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+```
+
+**GitLab の場合:**
+
+```bash
+project_path=$(glab repo view --output json | jq -r '.path_with_namespace')
+project_path_encoded=$(printf '%s' "$project_path" | jq -sRr @uri)
 ```
 
 ## 処理フロー
@@ -90,19 +108,23 @@ repo=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
 [判定理由]
 ```
 
-### 6. PRにコメント投稿
+### 6. PR/MR にコメント投稿
 
-判定に応じて `gh pr review` を使用。
+判定と VCS プロバイダーに応じてコメント投稿を行う。
+
+#### 共通: レビューコメントを一時ファイルに保存
+
+```bash
+tmp_file=".tmp/review-comment-${pr_number}.md"
+mkdir -p "$(dirname "$tmp_file")"
+# ... レビューコメントを $tmp_file に書き込み ...
+```
+
+#### GitHub の場合
 
 > **個人リポジトリでのフォールバック**: GitHub の仕様上、個人リポジトリ（User owned）では自分の PR に `--approve` / `--request-changes` を使用できない。リポジトリのオーナータイプを確認し、個人リポジトリの場合は `--comment` にフォールバックする。
 
 ```bash
-repo=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
-
-tmp_file=".tmp/review-comment-${pr_number}.md"
-mkdir -p "$(dirname "$tmp_file")"
-# ... レビューコメントを $tmp_file に書き込み ...
-
 # リポジトリのオーナータイプを確認
 owner_type=$(gh api "repos/${repo}" --jq '.owner.type')
 
@@ -117,11 +139,36 @@ else
   # 個人リポジトリ: --comment にフォールバック（自己PRでは approve/request-changes 不可）
   gh pr review "${pr_number}" --repo "${repo}" --comment --body-file "$tmp_file"
 fi
+```
 
+#### GitLab の場合
+
+GitLab MR には GitHub の `request-changes` に相当する blocking state が存在しない。そのため:
+
+- **承認時**: `glab mr approve` でアプルーブし、加えて note を投稿する
+- **変更要求時**: note のみ投稿する（note 本文冒頭で「❌ 変更要求」を明示）
+
+```bash
+# note 投稿（判定に関わらず共通）
+# ${pr_number} は MR iid
+jq -Rs '{body: .}' < "$tmp_file" | \
+  glab api "projects/${project_path_encoded}/merge_requests/${pr_number}/notes" \
+    --method POST --input -
+
+# 承認時のみ approve を追加呼び出し（権限不足時は警告表示して継続）
+if [ "$verdict" = "approve" ]; then
+  glab mr approve "${pr_number}" || \
+    echo "⚠️ glab mr approve failed（権限不足等の可能性）。note は投稿済み。"
+fi
+```
+
+#### 共通: 後片付け
+
+```bash
 rm -f "$tmp_file"
 ```
 
-**重要**: レビューコメントが長い場合は `--body-file` を使用すること。
+**重要**: GitHub / GitLab いずれも、レビューコメントが長い場合は `--body-file`（GitHub）/ stdin JSON 経由（GitLab）でファイルから渡すこと。
 
 ### 7. メインエージェントへサマリー返却
 
@@ -148,7 +195,7 @@ rm -f "$tmp_file"
 
 ## 制約事項
 
-- **Bashの用途制限**: `gh` コマンドによるPRコメント投稿のみに使用すること
+- **Bashの用途制限**: VCS 判定（`git remote`）と PR/MR コメント投稿（`gh` / `glab`）のみに使用すること
 - **テンプレート準拠**: 上記の出力形式から逸脱しない
 - **全エージェント結果を反映**: 提供された全ての結果を統合
 - **客観的**: 各エージェントの指摘に基づく判定
