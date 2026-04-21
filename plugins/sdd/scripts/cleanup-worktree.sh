@@ -109,34 +109,43 @@ sync_base_branch() {
     _log "Step7: fetch done"
 
     if [[ -n "$base_branch" ]]; then
-      local local_rev remote_rev
+      local local_rev remote_rev current_branch
       local_rev=$(git rev-parse "$base_branch" 2>/dev/null || echo "none")
       remote_rev=$(git rev-parse "origin/$base_branch" 2>/dev/null)
+      current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
       if [[ "$local_rev" != "$remote_rev" ]]; then
-        info "リモートに新しいコミットがあります。プル中..."
-        _log "Step7: git pull origin $base_branch"
-        if git pull origin "$base_branch"; then
-          _log "Step7: pull done"
-          success "${base_branch} ブランチを最新に更新しました"
+        info "リモートに新しいコミットがあります"
 
-          info "依存パッケージを同期中..."
-          _log "Step7: package install"
-          if run_package_install; then
-            _log "Step7: package install done"
-            success "依存パッケージのインストール完了"
-          else
-            warn "依存パッケージのインストールに失敗しました（手動で実行してください）"
-          fi
+        # `git pull origin <base>` は current branch にマージする挙動のため、
+        # base branch を明示的に更新できる場合のみ更新する（current == base）
+        if [[ "$current_branch" != "$base_branch" ]]; then
+          warn "現在のブランチが ${base_branch} と異なるため、ローカル ${base_branch} は更新しません (current: ${current_branch})"
+          info "手動更新する場合: git checkout ${base_branch} && git merge --ff-only origin/${base_branch}"
         else
-          warn "git pull に失敗しました（手動で実行してください）"
+          _log "Step7: git merge --ff-only origin/$base_branch"
+          if git merge --ff-only "origin/$base_branch"; then
+            _log "Step7: merge done"
+            success "${base_branch} ブランチを最新に更新しました"
+
+            info "依存パッケージを同期中..."
+            _log "Step7: package install"
+            if run_package_install; then
+              _log "Step7: package install done"
+              success "依存パッケージのインストール完了"
+            else
+              warn "依存パッケージのインストールに失敗しました（手動で実行してください）"
+            fi
+          else
+            warn "fast-forward マージに失敗しました（手動で確認してください）"
+          fi
         fi
       else
         success "${base_branch} ブランチは最新です"
       fi
     fi
   else
-    info "実行予定: git fetch origin ${base_branch} && git pull origin ${base_branch}（差分がある場合）"
+    info "実行予定: git fetch origin ${base_branch}（current が ${base_branch} の場合のみ ff-merge）"
   fi
 }
 
@@ -189,24 +198,44 @@ _log_start "$@"
 info "ワークツリー一覧を取得中..."
 WORKTREE_LIST=$(git worktree list --porcelain)
 
-# 対象ワークツリーを検索
+# 対象ワークツリーを検索（完全一致のみ）
+# 部分一致は似た名前の別ワークツリーを誤削除するリスクがあるため使わない
 WORKTREE_PATH=""
 WORKTREE_BRANCH=""
+MATCHES=()
 
 while IFS= read -r line; do
   if [[ $line == worktree* ]]; then
     CURRENT_PATH="${line#worktree }"
   elif [[ $line == branch* ]]; then
     CURRENT_BRANCH="${line#branch refs/heads/}"
+    CURRENT_BASENAME="$(basename "$CURRENT_PATH")"
 
-    # 検索条件に一致するか確認
-    if [[ "$CURRENT_PATH" == *"$TARGET"* ]] || [[ "$CURRENT_BRANCH" == *"$TARGET"* ]]; then
-      WORKTREE_PATH="$CURRENT_PATH"
-      WORKTREE_BRANCH="$CURRENT_BRANCH"
-      break
+    # パス完全一致 / パス末尾（basename）一致 / ブランチ完全一致 のみ許容
+    if [[ "$CURRENT_PATH" == "$TARGET" ]] \
+      || [[ "$CURRENT_BASENAME" == "$TARGET" ]] \
+      || [[ "$CURRENT_BRANCH" == "$TARGET" ]]; then
+      MATCHES+=("$CURRENT_PATH"$'\t'"$CURRENT_BRANCH")
     fi
   fi
 done <<< "$WORKTREE_LIST"
+
+# 複数一致は曖昧なので中断（誤削除防止）
+if [[ ${#MATCHES[@]} -gt 1 ]]; then
+  error "複数のワークツリーが一致しました（曖昧）: $TARGET"
+  echo ""
+  info "一致したワークツリー:"
+  for m in "${MATCHES[@]}"; do
+    echo "  ${m%%$'\t'*}  [${m##*$'\t'}]"
+  done
+  echo ""
+  info "完全なパスまたはブランチ名で指定してください"
+  exit 1
+fi
+
+if [[ ${#MATCHES[@]} -eq 1 ]]; then
+  IFS=$'\t' read -r WORKTREE_PATH WORKTREE_BRANCH <<< "${MATCHES[0]}"
+fi
 
 # 対象が見つからない場合
 if [[ -z "$WORKTREE_PATH" ]]; then
@@ -264,8 +293,12 @@ while IFS= read -r worktree_file; do
 
   # ルート側に既存の場合は差分チェック
   if [[ -f "$root_file" ]] || [[ -L "$root_file" ]]; then
-    diff -q "$worktree_file" "$root_file" >/dev/null 2>&1
-    diff_exit_code=$?
+    # `set -e` の下で `diff -q` が 1 を返すとスクリプトが終了してしまうため if で包む
+    if diff -q "$worktree_file" "$root_file" >/dev/null 2>&1; then
+      diff_exit_code=0
+    else
+      diff_exit_code=$?
+    fi
 
     if [[ $diff_exit_code -eq 0 ]]; then
       info "  ⏭️  スキップ（同一）: $rel_path"
