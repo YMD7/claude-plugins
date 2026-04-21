@@ -55,7 +55,7 @@ SDD プラグインの他コマンド（`create-worktree`, `plan-task`, `consoli
 **判定・追記フロー:**
 
 1. **既存記述の確認（冪等性）**:
-   - `AGENTS.md` / `CLAUDE.md` を読み、`VCS:` 等の記述が既にある場合は何もしない
+   - `AGENTS.md` / `CLAUDE.md` を読み、VCS 記述（`## VCS` セクション等）が既にある場合は何もしない
 
 2. **VCS プロバイダー判定**:
    - `git remote get-url origin` を実行し、ホスト名から判定:
@@ -72,19 +72,25 @@ SDD プラグインの他コマンド（`create-worktree`, `plan-task`, `consoli
    - `CLAUDE.md` のみ存在する → `CLAUDE.md` に追記
    - どちらも無い → ユーザーに確認（どちらを作成するか、スキップするか）
 
-4. **追記内容（1 行のみ）**:
+4. **追記内容**:
+
+   独立した h2 セクションとして追記する（他のセクションと構造を揃え、本文は 1 行）:
 
    ```markdown
-   - **VCS**: GitHub — use `gh` for issue/PR operations
+   ## VCS
+
+   GitHub — use `gh` for issue/PR operations
    ```
 
    または
 
    ```markdown
-   - **VCS**: GitLab ({host}) — use `glab` for issue/MR operations
+   ## VCS
+
+   GitLab ({host}) — use `glab` for issue/MR operations
    ```
 
-**重要原則**: 追記は **1 行のみ**。背景説明・手順・URL 等の詳細は書かない。`AGENTS.md` / `CLAUDE.md` は常時自動ロードされてコンテキスト予算を消費するため、最小記述を徹底する。
+**重要原則**: 本文は最小限に抑える。背景説明・手順・URL 等の詳細は書かない。`AGENTS.md` / `CLAUDE.md` は常時自動ロードされてコンテキスト予算を消費するため。
 
 ### Phase 1: プロジェクト調査（並行実行）
 
