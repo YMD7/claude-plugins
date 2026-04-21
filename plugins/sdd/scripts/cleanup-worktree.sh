@@ -168,6 +168,9 @@ fi
 DRY_RUN=false
 TARGET=""
 
+# 解析ループで `shift` すると `$@` が空になり、後段のログで実行引数が追えなくなるため保存しておく
+ORIGINAL_ARGS=("$@")
+
 while [[ $# -gt 0 ]]; do
   case $1 in
     -h|--help)
@@ -192,7 +195,7 @@ fi
 
 # プロジェクトルートに移動
 cd "$PROJECT_ROOT"
-_log_start "$@"
+_log_start "${ORIGINAL_ARGS[@]}"
 
 # ワークツリー一覧を取得
 info "ワークツリー一覧を取得中..."
