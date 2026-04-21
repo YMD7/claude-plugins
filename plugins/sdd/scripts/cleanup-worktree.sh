@@ -111,8 +111,14 @@ sync_base_branch() {
     if [[ -n "$base_branch" ]]; then
       local local_rev remote_rev current_branch
       local_rev=$(git rev-parse "$base_branch" 2>/dev/null || echo "none")
-      remote_rev=$(git rev-parse "origin/$base_branch" 2>/dev/null)
+      remote_rev=$(git rev-parse "origin/$base_branch" 2>/dev/null || echo "")
       current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+      # remote ref が解決できない場合は「更新あり」と誤判定しないよう早期に抜ける
+      if [[ -z "$remote_rev" ]]; then
+        warn "origin/${base_branch} の revision を取得できませんでした（fetch 後の状態不整合）"
+        return
+      fi
 
       if [[ "$local_rev" != "$remote_rev" ]]; then
         info "リモートに新しいコミットがあります"
