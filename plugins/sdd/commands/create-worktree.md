@@ -189,24 +189,27 @@ Issue番号: $2
 
 ### 共通処理（全パターン）
 
-3.1. **ワークツリーディレクトリの決定**:
+3.1. **ワークツリーベースディレクトリの決定**:
 
-ワークツリーを配置するディレクトリを以下の優先順で判定する:
+ワークツリーの配置先は `.worktrees/` をデフォルトとする。プロジェクト固有に変更したい場合は、`AGENTS.md` / `CLAUDE.md` に `Worktree Base:` 記述（例: `Worktree Base: custom-worktrees/`）を置けば上書きできる（VCS 判定と同じパターン）。
 
 ```
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+WORKTREE_BASE=".worktrees"  # デフォルト
 
-1. $PROJECT_ROOT/.worktrees/ が存在する → そこを使用（推奨）
-2. $PROJECT_ROOT/worktrees/ が存在する → そこを使用（レガシー。警告表示）
-3. どちらも存在しない → .worktrees/ を作成提案:
-   「ワークツリー用ディレクトリが見つかりません。
-   .worktrees/ を作成してよろしいですか？(y/n)」
-   - Yes → mkdir -p .worktrees/ を実行
-          → .gitignore に .worktrees が未登録なら追加
-   - No → ユーザーに希望のディレクトリを確認
+# AGENTS.md / CLAUDE.md に `Worktree Base: <path>` の記述があれば WORKTREE_BASE を上書き
+#   （末尾スラッシュは任意。読み込み側で除去して扱う）
+
+# ベースディレクトリが存在しない場合は作成提案:
+if [ ! -d "$PROJECT_ROOT/$WORKTREE_BASE" ]; then
+  「$WORKTREE_BASE/ ディレクトリが見つかりません。作成してよろしいですか？(y/n)」
+  - Yes → mkdir -p "$PROJECT_ROOT/$WORKTREE_BASE"
+         → .gitignore に $WORKTREE_BASE が未登録なら追加
+  - No → ユーザーに希望のディレクトリを確認
+fi
 ```
 
-判定結果を `WORKTREE_BASE` 変数として以降のステップで使用する（通常は `.worktrees`、レガシーで `worktrees`）。
+以降のステップでは `WORKTREE_BASE` 変数を使用する（デフォルト `.worktrees`）。
 
 3.5. **ベースブランチのクリーン状態チェック**:
 
