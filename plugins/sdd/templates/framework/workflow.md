@@ -33,6 +33,25 @@
   - Scope用: `blueprint-scope-template.md`
   - Spec用: `spec-requirements-template.md`, `spec-design-template.md`, `spec-tasks-template.md`
 
+## ドキュメントの読み手と記述粒度
+
+各ドキュメントが想定する読み手と記述粒度を以下に定義します。AI はドキュメント生成時にこの定義を参照し、対象読み手にとって理解しやすい粒度・抽象度で記述してください。
+
+| 層 | Primary audience | Secondary audience | 記述粒度 |
+|---|---|---|---|
+| `blueprint/overview.md` | ビジネス | エンジニア | ブループリントの位置づけ・対応 scope 一覧・docs 参照 |
+| `blueprint/architecture.md` | エンジニア | ビジネス | 技術アーキテクチャの俯瞰 |
+| `blueprint/scopes/*.md` | ビジネス | エンジニア | In/Out、I/F 概要、AC、テスト観点（WHAT 粒度） |
+| `spec/requirements.md` | エンジニア | ビジネス | ユーザーストーリー、詳細 AC、NFR、リスク（HOW の手前） |
+| `spec/design.md` | エンジニア | — | 技術設計・実装判断 |
+| `spec/tasks.md` | エンジニア | — | 実装タスク分解 |
+
+### 記述粒度に関する補足
+
+- **技術用語の使用**: ビジネスを Primary audience とするドキュメント（blueprint 系）でも、技術用語・英語フィールド名の使用は妨げません。テック企業のビジネスサイドは技術リテラシーを持つ前提で書きます
+- **境界の軸**: blueprint と spec の境界は「用語の平易さ」ではなく **HOW の解像度** です。blueprint は WHAT と HOW の概観まで、spec は HOW の詳細まで踏み込みます
+- **省略しすぎない**: Primary が誰であっても、Secondary audience が概観を理解できる程度の情報量は保ちます。極端な簡略化は避けてください
+
 ## ステアリングファイルの設置
 
 ステアリングファイルは、Spec 生成時に AI が参照するプロジェクト固有の情報を定義します。
